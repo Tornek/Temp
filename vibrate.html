@@ -2,9 +2,13 @@
 <html>
 <head>
 	<title></title>
+	<script>
+		function handleClick() {
+			window.navigator.vibrate([100,30,100,30,100,200,200,30,200,30,200,200,100,30,100,30,100])
+		}
+	</script>
 </head>
 <body>
-	<button onclick="window.navigator.vibrate([100,30,100,30,100,200,200,30,200,30,200,200,100,30,100,30,100])">click me</button>
-
+	<button onclick="handleClick()">click me</button>
 </body>
 </html>
