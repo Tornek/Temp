@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PromisesQueue</title>
+    <style>
+        .animation-frame {
+            height: 30px;
+        }
+
+        .red-block {
+            width: 30px;
+            height: 30px;
+            background: #943737;
+            position: absolute;
+            left: 0;
+            top: 0;
+            animation: 3s linear 0s infinite alternate move;
+        }
+
+        @keyframes move {
+            from {
+                left: 0;
+            }
+            to {
+                left: calc(100% - 30px);
+            }
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            var DEFAULT_PARAMS = {
+                limit: 5,
+                timeout: 1000,
+            }
+            function PromisesQueue(params = DEFAULT_PARAMS) {
+                this.queue = []
+                this.__limit = params.limit
+                this.__timeout = params.timeout
+                this.__isLaunched = false
+                this.add = function add(fn) {
+                    var item = {
+                        fn: fn,
+                        isStarted: false,
+                        resolve: function () {
+                        },
+                        reject: function () {
+                        },
+                    }
+                    item['promise'] = new Promise(function (resolve, reject) {
+                        item.resolve = resolve
+                        item.reject = reject
+                    })
+                    this.queue.push(item)
+                    this.launch()
+
+                    return item.promise
+                }
+                this.launch = function launch() {
+                    if (!this.__isLaunched) {
+                        this.__isLaunched = true
+                        this.__launch(0)
+                    }
+                }
+                this.__launch = function (timeout = this.__timeout) {
+                    var that = this
+                    var items = this.queue.filter(function (item) {
+                        return !item.isStarted
+                    }).slice(0, this.__limit)
+
+                    if (items.length === 0) {
+                        this.__isLaunched = false
+                        this.queue = []
+                        return
+                    }
+
+                    return new Promise(function (resolve) {
+                        setTimeout(function () {
+                            items.forEach(function (item) {
+                                item.isStarted = true
+                            })
+                            Promise.all(items.map(function (item) {
+                                return item.fn().then(item.resolve, item.reject)
+                            })).then(function () {
+                                resolve()
+                            })
+                        }, timeout)
+                    }).then(function () {
+                        that.__launch()
+                    })
+                }
+            }
+
+            var pq = new PromisesQueue()
+            var getTime = () => Math.floor(performance.now() / 1000)
+
+            document.querySelector('.js-startQueue').addEventListener('click', () => {
+                Promise.all(
+                    Array(125).fill(1).map(function (item, i) {
+                        return pq.add(() => new Promise((resolve, reject) => {
+                            var isResolve = Math.random() < 0.5 ? false : true
+                            var fn = isResolve ? resolve : reject
+                            var text = isResolve ? 'Выполнено ' + i : 'Не выполнено ' + i
+                            setTimeout(() => {
+                                fn(text)
+                            }, Math.floor(Math.random() * 1000))
+                        })).then(
+                            (i) => (console.log('%c%s', 'color: green;', getTime() + ': ' + i), i),
+                            (i) => (console.log('%c%s', 'color: red;', getTime() + ': ' + i), i)
+                        )
+                    })
+                ).then(console.log.bind(console, 'resolved'), console.log.bind(console, 'rejected'))
+            })
+            document.querySelector('.js-startFreeze').addEventListener('click', () => {
+                function loop(limit = 10000) {
+                    if (limit > 0) {
+                        var res = limit
+                        return new Promise(resolve => {
+                            for (var i = 0; i < 100000; i++) {
+                                res += Math.PI * 10000000000 * i
+                            }
+                            resolve()
+                        }).then(() => (console.log(getTime(), res), loop(limit - 1)))
+                    }
+                }
+
+                loop()
+            })
+        })
+    </script>
+</head>
+<body>
+<div class="animation-frame">
+    <div class="red-block"></div>
+</div>
+<div>
+    <button class="js-startQueue">Промисы не фризищие UI</button>
+    <button class="js-startFreeze">Промисы фризищие UI</button>
+</div>
+</body>
+</html>
